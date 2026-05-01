@@ -144,7 +144,7 @@ export function findMatch(query) {
 //       body: JSON.stringify({
 //         model: 'claude-sonnet-4-6',
 //         max_tokens: 2000,
-//         system: `You are the NTT DATA GW AMS AI Ops Assistant. You have deep expertise in
+//         system: `You are the GW AMS AI Ops Assistant. You have deep expertise in
 //                  Guidewire PolicyCenter, BillingCenter, and ClaimCenter. When an engineer
 //                  describes a production incident:
 //                  1. Identify the root cause from GW patterns (N+1, workflow deadlock, empty catch, etc.)

@@ -36,14 +36,14 @@ var SUGGESTED = [
   'ISO ClaimSearch returning HTTP 400 on FNOL',
 ];
 
-var WELCOME = 'Hello! I am the NTT DATA GW AMS AI Ops Assistant.\n\nDescribe your Guidewire incident and I will provide immediate triage steps, root cause analysis, and the permanent fix from the knowledge base.\n\nTry one of the suggested queries below or describe your incident in plain English.';
+var WELCOME = 'Hello! I am the GW AMS AI Ops Assistant.\n\nDescribe your Guidewire incident and I will provide immediate triage steps, root cause analysis, and the permanent fix from the knowledge base.\n\nTry one of the suggested queries below or describe your incident in plain English.';
 
-function NTTLogo() {
+function AppLogo() {
   return (
     <div style={{ display:'flex', flexDirection:'column', lineHeight:1 }}>
       <div style={{ display:'flex', alignItems:'baseline', gap:3 }}>
-        <span style={{ fontFamily:'Arial Black,Arial', fontWeight:900, fontSize:20, color:BLUE }}>NTT</span>
-        <span style={{ fontFamily:'Arial,sans-serif', fontWeight:700, fontSize:16, color:BLUE }}>DATA</span>
+        <span style={{ fontFamily:'Arial Black,Arial', fontWeight:900, fontSize:20, color:WHITE }}>GW</span>
+        <span style={{ fontFamily:'Arial,sans-serif', fontWeight:700, fontSize:16, color:'#C8D8F0' }}>AMS</span>
       </div>
       <div style={{ height:2, background:RED, marginTop:2, borderRadius:1 }}/>
     </div>
@@ -209,30 +209,30 @@ export default function App() {
   return (
     <div style={{ fontFamily:"'Segoe UI',Arial,sans-serif", background:G100, minHeight:'100vh', display:'flex', flexDirection:'column' }}>
 
-      <header style={{ background:WHITE, borderBottom:'3px solid '+BLUE, padding:'10px 24px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 2px 6px rgba(0,0,0,0.07)', flexShrink:0 }}>
+      <header style={{ background:BLUE, borderBottom:'3px solid '+RED, padding:'10px 24px', display:'flex', alignItems:'center', justifyContent:'space-between', boxShadow:'0 3px 10px rgba(0,0,0,0.18)', flexShrink:0 }}>
         <div style={{ display:'flex', alignItems:'center', gap:18 }}>
-          <NTTLogo/>
-          <div style={{ width:1, height:30, background:G200 }}/>
+          <AppLogo/>
+          <div style={{ width:1, height:30, background:'rgba(255,255,255,0.2)' }}/>
           <div>
-            <div style={{ fontSize:14, fontWeight:700, color:BLUE }}>GW AI Ops Assistant</div>
-            <div style={{ fontSize:10, color:G600 }}>GenAI-Powered Incident Triage -- Guidewire AMS Accelerator</div>
+            <div style={{ fontSize:14, fontWeight:700, color:WHITE }}>GW AI Ops Assistant</div>
+            <div style={{ fontSize:10, color:'#C8D8F0' }}>GenAI-Powered Incident Triage -- Guidewire AMS Accelerator</div>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:5, marginLeft:8 }}>
             <div style={{ width:8, height:8, borderRadius:'50%', background:GREEN }}/>
-            <span style={{ fontSize:10, color:GREEN, fontWeight:700 }}>KB Active</span>
+            <span style={{ fontSize:10, color:'#6EE7A0', fontWeight:700 }}>KB Active</span>
           </div>
         </div>
         <div style={{ display:'flex', gap:22 }}>
           {[
-            { v:KB_ARTICLES.length, l:'KB Articles', c:BLUE   },
-            { v:stats.total,        l:'Queries',     c:PURPLE },
-            { v:stats.resolved,     l:'Resolved',    c:GREEN  },
+            { v:KB_ARTICLES.length, l:'KB Articles', c:WHITE        },
+            { v:stats.total,        l:'Queries',     c:'#C8D8F0'    },
+            { v:stats.resolved,     l:'Resolved',    c:'#6EE7A0'    },
             { v:stats.avgMTTR ? stats.avgMTTR+'m' : '--', l:'Avg MTTR', c:AMBER },
           ].map(function(s) {
             return (
               <div key={s.l} style={{ textAlign:'center' }}>
                 <div style={{ fontSize:20, fontWeight:800, color:s.c, lineHeight:1 }}>{s.v}</div>
-                <div style={{ fontSize:9, color:G400, textTransform:'uppercase', letterSpacing:1 }}>{s.l}</div>
+                <div style={{ fontSize:9, color:'rgba(255,255,255,0.55)', textTransform:'uppercase', letterSpacing:1 }}>{s.l}</div>
               </div>
             );
           })}
@@ -269,7 +269,7 @@ export default function App() {
                     boxShadow:'0 1px 4px rgba(0,0,0,0.07)', whiteSpace:'pre-wrap',
                   }}>
                     {!isUser && (
-                      <div style={{ fontSize:10, fontWeight:700, color:BLUE, marginBottom:5 }}>GW AI Ops Assistant</div>
+                      <div style={{ fontSize:10, fontWeight:700, color:BLUE, marginBottom:5, letterSpacing:0.5 }}>GW AI Ops Assistant</div>
                     )}
                     {msg.text}
                     {msg.kb && (
@@ -285,7 +285,7 @@ export default function App() {
             {loading && (
               <div style={{ display:'flex' }}>
                 <div style={{ background:WHITE, border:'1px solid '+G200, borderRadius:'4px 16px 16px 16px', padding:'12px 14px' }}>
-                  <div style={{ fontSize:10, fontWeight:700, color:BLUE, marginBottom:5 }}>GW AI Ops Assistant</div>
+                  <div style={{ fontSize:10, fontWeight:700, color:BLUE, marginBottom:5, letterSpacing:0.5 }}>GW AI Ops Assistant</div>
                   <div style={{ display:'flex', gap:5, alignItems:'center' }}>
                     {[0,1,2].map(function(d) {
                       return <div key={d} style={{ width:8, height:8, borderRadius:'50%', background:BLUE, opacity:0.5 }}/>;
@@ -336,7 +336,7 @@ export default function App() {
         {['PolicyCenter','BillingCenter','ClaimCenter','Knowledge Graph (Prod)','Claude Sonnet (Prod)','ServiceNow (Prod)'].map(function(t) {
           return <span key={t} style={{ fontSize:9, color:G600, border:'1px solid '+G200, padding:'2px 7px', borderRadius:3, background:G100 }}>{t}</span>;
         })}
-        <span style={{ marginLeft:'auto', fontSize:10, color:G400 }}>NTT DATA -- GW AI Ops Assistant 2025</span>
+        <span style={{ marginLeft:'auto', fontSize:10, color:G400 }}>GW AI Ops Assistant 2025</span>
       </footer>
     </div>
   );

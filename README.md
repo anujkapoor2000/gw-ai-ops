@@ -1,5 +1,5 @@
 # GW AI Ops Assistant
-### NTT DATA -- Guidewire AMS Accelerator
+### Guidewire AMS Accelerator
 
 GenAI-powered incident triage assistant for Guidewire AMS. Describe a production incident in plain English and get immediate triage steps, root cause analysis, permanent Gosu code fix, and a JIRA ticket template -- all in under 10 seconds.
 
@@ -78,7 +78,7 @@ export async function getResponse(userMessage) {
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
       max_tokens: 2000,
-      system: `You are the NTT DATA GW AMS AI Ops Assistant. Deep expertise in
+      system: `You are the GW AMS AI Ops Assistant. Deep expertise in
                Guidewire PolicyCenter, BillingCenter, and ClaimCenter.
                When an engineer describes a production incident:
                1. Identify root cause (N+1 query, empty catch, workflow deadlock, etc.)
@@ -163,4 +163,4 @@ Add to `KB_ARTICLES` in `src/kb.js`:
 
 ---
 
-## NTT DATA -- Guidewire AMS Accelerators 2025
+## Guidewire AMS Accelerators 2025

@@ -1,7 +1,7 @@
 {
   "name": "gw-ai-ops",
   "version": "1.0.0",
-  "description": "NTT DATA - GW AMS AI Ops Assistant - GenAI-Powered Incident Triage",
+  "description": "GW AMS AI Ops Assistant - GenAI-Powered Incident Triage",
   "private": true,
   "dependencies": {
     "react": "^18.2.0",
