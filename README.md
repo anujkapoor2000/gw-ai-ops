@@ -74,10 +74,18 @@ Replace `getResponse()` in `src/kb.js` with a real Claude API call:
 export async function getResponse(userMessage) {
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.REACT_APP_ANTHROPIC_KEY,
+      'anthropic-version': '2023-06-01',
+      // Required to call the API directly from the browser. This exposes the
+      // API key to the client -- for production, proxy through a backend
+      // (e.g. a Vercel serverless function) and keep the key server-side.
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2000,
+      model: 'claude-opus-4-8',
+      max_tokens: 4096,
       system: `You are the GW AMS AI Ops Assistant. Deep expertise in
                Guidewire PolicyCenter, BillingCenter, and ClaimCenter.
                When an engineer describes a production incident:
