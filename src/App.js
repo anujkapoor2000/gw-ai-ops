@@ -49,7 +49,7 @@ function appendBoundedMessages(current, additions) {
 }
 
 function getMttrMinutes(kb) {
-  var match = String(kb && kb.estimatedMTTR || '').match(/\d+/);
+  var match = String((kb && kb.estimatedMTTR) || '').match(/\d+/);
   return match ? parseInt(match[0], 10) : 0;
 }
 
