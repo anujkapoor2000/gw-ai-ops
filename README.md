@@ -68,13 +68,49 @@ Static KB with 6 articles and keyword matching. Full chat UI with 3-panel layout
 
 ### Phase 2 -- Live Claude API (Week 1-2)
 
-Replace `getResponse()` in `src/kb.js` with a real Claude API call:
+> **SECURITY -- read first.** Never call the Anthropic API directly from the
+> browser and never store the API key in a `REACT_APP_*` variable. Any value
+> prefixed `REACT_APP_` is compiled into the **public** JavaScript bundle and is
+> readable by every visitor (open DevTools -> Sources). API keys, tokens and
+> other secrets MUST live only on a server. Route all model calls through your
+> own backend / serverless function that holds the secret and forwards only the
+> sanitized user message.
+
+**Browser side** -- `getResponse()` in `src/kb.js` talks only to your own proxy:
 
 ```javascript
+import { sanitizeQuery } from './kb';
+
 export async function getResponse(userMessage) {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const message = sanitizeQuery(userMessage); // bounded, control-char free
+  if (!message) return null;
+  const response = await fetch('/api/triage', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message }),
+  });
+  if (!response.ok) throw new Error('Triage request failed: ' + response.status);
+  const data = await response.json();
+  return data.result;
+}
+```
+
+**Server side** -- serverless function at `/api/triage` (the key never leaves the server):
+
+```javascript
+// api/triage.js  (Vercel / Netlify function)
+export default async function handler(req, res) {
+  const key = process.env.ANTHROPIC_API_KEY; // NOT REACT_APP_* -- server-only secret
+  const message = String(req.body?.message ?? '').slice(0, 2000);
+  if (!key || !message) return res.status(400).json({ error: 'bad request' });
+
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+    },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
       max_tokens: 2000,
@@ -84,17 +120,17 @@ export async function getResponse(userMessage) {
                1. Identify root cause (N+1 query, empty catch, workflow deadlock, etc.)
                2. Provide numbered immediate triage steps
                3. Recommend permanent Gosu code fix
-               4. Suggest JIRA ticket summary and acceptance criteria
-               Return response as JSON: { rootCause, immediateSteps[], permanentFix, gosuSnippet, jiraTemplate }`,
-      messages: [{ role: 'user', content: userMessage }],
+               4. Suggest JIRA ticket summary and acceptance criteria`,
+      messages: [{ role: 'user', content: message }],
     }),
   });
-  const data = await response.json();
-  return JSON.parse(data.content[0].text);
+  const data = await r.json();
+  return res.status(200).json({ result: data.content?.[0]?.text ?? '' });
 }
 ```
 
-Add `REACT_APP_ANTHROPIC_KEY` in Vercel dashboard -> Environment Variables.
+Store the secret as `ANTHROPIC_API_KEY` (server-only, **not** `REACT_APP_*`) in
+Vercel/Netlify dashboard -> Environment Variables.
 
 ### Phase 3 -- Knowledge Graph Integration (Week 3-4)
 
@@ -109,20 +145,29 @@ const context = await similar.json();
 
 ### Phase 4 -- ServiceNow / Jira Integration (Week 5-6)
 
+> **SECURITY.** The ServiceNow token is a secret and must stay server-side. Do
+> NOT use `REACT_APP_SNOW_TOKEN` (that ships the token to every browser). Create
+> the incident from a backend / serverless function using a server-only env var.
+
 ```javascript
-// Auto-create incident in ServiceNow when AI Ops detects a new issue
-await fetch('https://YOUR_INSTANCE.service-now.com/api/now/table/incident', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer ' + process.env.REACT_APP_SNOW_TOKEN,
-  },
-  body: JSON.stringify({
-    short_description: detectedTitle,
-    description: triageSteps.join('\n'),
-    urgency: severityToUrgency(severity),
-  }),
-});
+// api/servicenow-incident.js  (server side -- token never reaches the browser)
+export default async function handler(req, res) {
+  const token = process.env.SNOW_TOKEN; // server-only secret, NOT REACT_APP_*
+  const { detectedTitle, triageSteps, severity } = req.body ?? {};
+  const r = await fetch('https://YOUR_INSTANCE.service-now.com/api/now/table/incident', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + token,
+    },
+    body: JSON.stringify({
+      short_description: String(detectedTitle ?? '').slice(0, 160),
+      description: Array.isArray(triageSteps) ? triageSteps.join('\n') : '',
+      urgency: severityToUrgency(severity),
+    }),
+  });
+  return res.status(r.ok ? 201 : 502).json(await r.json());
+}
 ```
 
 ### Phase 5 -- Proactive Alerting (Week 7-8)

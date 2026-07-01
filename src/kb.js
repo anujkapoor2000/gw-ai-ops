@@ -156,28 +156,53 @@ export function findMatch(query) {
 // PHASE 1 (PoC): Returns static KB match after simulated delay.
 // PHASE 2 (Production): Replace with real Claude API call.
 //
-// Example production implementation:
+// SECURITY: NEVER call the Anthropic API directly from the browser and NEVER
+// put the API key in a REACT_APP_* variable -- anything prefixed REACT_APP_ is
+// compiled into the public JS bundle and is readable by every visitor. The key
+// must live only on the server. Route requests through your own backend / a
+// serverless function that holds the secret in a non-public env var
+// (ANTHROPIC_API_KEY) and forwards the sanitized message.
+//
+// Example production implementation (browser side -- talks only to your proxy):
 //
 //   export async function getResponse(userMessage, conversationHistory) {
-//     const response = await fetch('https://api.anthropic.com/v1/messages', {
+//     const message = sanitizeQuery(userMessage);
+//     if (!message) return null;
+//     const response = await fetch('/api/triage', {
 //       method: 'POST',
 //       headers: { 'Content-Type': 'application/json' },
+//       body: JSON.stringify({ message, history: conversationHistory }),
+//     });
+//     if (!response.ok) throw new Error('Triage request failed: ' + response.status);
+//     const data = await response.json();
+//     return data.result;
+//   }
+//
+// Example serverless proxy (server side -- e.g. /api/triage; key stays here):
+//
+//   export default async function handler(req, res) {
+//     const key = process.env.ANTHROPIC_API_KEY; // NOT REACT_APP_*
+//     const message = String(req.body?.message ?? '').slice(0, 2000);
+//     if (!key || !message) return res.status(400).json({ error: 'bad request' });
+//     const r = await fetch('https://api.anthropic.com/v1/messages', {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json',
+//         'x-api-key': key,
+//         'anthropic-version': '2023-06-01',
+//       },
 //       body: JSON.stringify({
 //         model: 'claude-sonnet-4-6',
 //         max_tokens: 2000,
-//         system: `You are the GW AMS AI Ops Assistant. You have deep expertise in
-//                  Guidewire PolicyCenter, BillingCenter, and ClaimCenter. When an engineer
-//                  describes a production incident:
-//                  1. Identify the root cause from GW patterns (N+1, workflow deadlock, empty catch, etc.)
-//                  2. Provide immediate triage steps in numbered order
-//                  3. Recommend the permanent Gosu code fix
-//                  4. Suggest a JIRA ticket template
-//                  Always reference the specific GW module, line of code if identifiable, and estimated MTTR.`,
-//         messages: conversationHistory.concat([{ role: 'user', content: userMessage }]),
+//         system: 'You are the GW AMS AI Ops Assistant with deep Guidewire ' +
+//                 'PolicyCenter/BillingCenter/ClaimCenter expertise. Identify root ' +
+//                 'cause, list numbered triage steps, recommend the permanent Gosu ' +
+//                 'fix, and suggest a JIRA template. Cite module, line, and MTTR.',
+//         messages: [{ role: 'user', content: message }],
 //       }),
 //     });
-//     const data = await response.json();
-//     return data.content[0].text;
+//     const data = await r.json();
+//     return res.status(200).json({ result: data.content?.[0]?.text ?? '' });
 //   }
 
 export function getResponse(userMessage) {
