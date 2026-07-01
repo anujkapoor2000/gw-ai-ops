@@ -113,9 +113,30 @@ export var KB_ARTICLES = [
   },
 ];
 
+// Upper bound on how much user-supplied text we will process. Prevents
+// resource-exhaustion / abuse from pathologically large inputs and bounds the
+// payload that a future real API integration (see getResponse) would forward.
+export var MAX_QUERY_LENGTH = 2000;
+
+// Normalise arbitrary user input into a safe, bounded, plain string.
+// Rejects non-strings, strips control characters, collapses whitespace and
+// truncates to MAX_QUERY_LENGTH.
+export function sanitizeQuery(input) {
+  if (typeof input !== 'string') return '';
+  var cleaned = input
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001F\u007F]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (cleaned.length > MAX_QUERY_LENGTH) {
+    cleaned = cleaned.slice(0, MAX_QUERY_LENGTH);
+  }
+  return cleaned;
+}
+
 // ── Keyword search ────────────────────────────────────────────────────────────
 export function findMatch(query) {
-  var q = query.toLowerCase().trim();
+  var q = sanitizeQuery(query).toLowerCase();
   if (!q) return null;
   var best = null;
   var bestScore = 0;
@@ -161,8 +182,12 @@ export function findMatch(query) {
 
 export function getResponse(userMessage) {
   return new Promise(function(resolve) {
+    // Bound and sanitize before any processing. When this stub is replaced by
+    // a real API call, forward `safeMessage` (never the raw input) so that
+    // untrusted content is always length-limited and control-char free.
+    var safeMessage = sanitizeQuery(userMessage);
     setTimeout(function() {
-      var match = findMatch(userMessage);
+      var match = safeMessage ? findMatch(safeMessage) : null;
       resolve(match);
     }, 1200);
   });

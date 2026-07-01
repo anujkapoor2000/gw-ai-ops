@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { KB_ARTICLES, getResponse } from './kb';
+import { KB_ARTICLES, getResponse, sanitizeQuery, MAX_QUERY_LENGTH } from './kb';
 
 var BLUE   = '#003087';
 var LBLUE  = '#0067B1';
@@ -179,8 +179,8 @@ export default function App() {
   }, [messages, loading]);
 
   function sendQuery(q) {
-    var text = q || query;
-    if (!text.trim() || loading) return;
+    var text = sanitizeQuery(q || query);
+    if (!text || loading) return;
     setQuery('');
     setLoading(true);
     var newMessages = messages.concat([{ role:'user', text:text, kb:null }]);
@@ -194,7 +194,9 @@ export default function App() {
         setKbTab('steps');
         setStats(function(prev) {
           var resolved = prev.resolved + 1;
-          var avg = Math.round((prev.avgMTTR * prev.resolved + parseInt(match.estimatedMTTR)) / resolved);
+          var mttr = parseInt(match.estimatedMTTR, 10);
+          if (isNaN(mttr)) mttr = 0;
+          var avg = Math.round((prev.avgMTTR * prev.resolved + mttr) / resolved);
           return { resolved:resolved, avgMTTR:avg, total:prev.total + 1 };
         });
       } else {
@@ -313,6 +315,7 @@ export default function App() {
           <div style={{ padding:'14px 20px', background:WHITE, borderTop:'1px solid '+G200, display:'flex', gap:10 }}>
             <input value={query} onChange={function(e) { setQuery(e.target.value); }}
               onKeyDown={function(e) { if (e.key === 'Enter') sendQuery(); }}
+              maxLength={MAX_QUERY_LENGTH}
               placeholder="Describe the incident: 'PolicyCenter validation timing out on HO-3 renewals'..."
               style={{ flex:1, padding:'10px 14px', borderRadius:10, border:'1.5px solid '+(query?BLUE:G200), fontSize:12, color:G800, outline:'none' }}/>
             <button onClick={function() { sendQuery(); }} disabled={loading || !query.trim()}
