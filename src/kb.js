@@ -1,7 +1,12 @@
 // ─── GW AMS AI Ops -- Knowledge Base ─────────────────────────────────────────
 // PHASE 1 (PoC): Static KB articles with keyword matching.
-// PHASE 2 (Production): Replace getResponse() with a real Claude API call.
-// See README.md for the Claude prompt and integration guide.
+// PHASE 2 (Production): Replace getResponse() with an authenticated server-side
+// API route. Do not call LLM, ServiceNow, Jira, or graph APIs directly from the
+// browser because client bundles expose credentials and internal endpoints.
+// See README.md for the secure integration guide.
+
+var MAX_QUERY_LENGTH = 2000;
+var MIN_MATCH_SCORE = 2;
 
 export var KB_ARTICLES = [
   {
@@ -28,7 +33,7 @@ export var KB_ARTICLES = [
     trigger: ['ach', 'payment', 'gateway', 'timeout', 'billing', 'invoice', 'failed', 'npe', 'null'],
     rootCause: 'BillingWorkflowHandler calls ACH gateway with 30s timeout. Gateway SLA is 28s under load. Empty catch block silently swallows failures causing NullPointerException downstream.',
     immediateSteps: [
-      'Check ACH gateway status: status.achgateway.internal -- confirm if gateway is degraded',
+      'Check the authenticated payment gateway status dashboard -- confirm if gateway is degraded',
       'In BillingCenter Admin: navigate to Failed Transactions, identify affected invoice IDs',
       'Trigger manual retry on failed invoices via BillingCenter > Payments > Retry Failed',
       'If gateway down: enable manual payment fallback in BillingCenter > Config > Payment Gateway',
@@ -48,7 +53,7 @@ export var KB_ARTICLES = [
     immediateSteps: [
       'In ClaimCenter Admin > Workflow Monitor: find claims with status Assigning for more than 5 minutes',
       'Note the claim IDs and affected adjuster queue',
-      'Run diagnostic SQL (read-only): SELECT * FROM pc_workflow WHERE status=LOCKED AND updated < NOW()-INTERVAL 10 MINUTE',
+      'Use the approved read-only workflow diagnostic report to identify stale workflow locks',
       'In ClaimCenter Admin: use Reset Workflow action on the stuck claim -- safe and audit-logged',
       'Verify claim moves to Assigned status within 60 seconds',
       'Monitor queue for 10 minutes to confirm no recurrence',
@@ -115,7 +120,7 @@ export var KB_ARTICLES = [
 
 // ── Keyword search ────────────────────────────────────────────────────────────
 export function findMatch(query) {
-  var q = query.toLowerCase().trim();
+  var q = String(query || '').toLowerCase().slice(0, MAX_QUERY_LENGTH).trim();
   if (!q) return null;
   var best = null;
   var bestScore = 0;
@@ -128,35 +133,26 @@ export function findMatch(query) {
     if (q.indexOf(kb.category.toLowerCase()) !== -1) score++;
     if (score > bestScore) { bestScore = score; best = kb; }
   });
-  return bestScore > 0 ? best : null;
+  return bestScore >= MIN_MATCH_SCORE ? best : null;
 }
 
 // ── getResponse ───────────────────────────────────────────────────────────────
 // PHASE 1 (PoC): Returns static KB match after simulated delay.
-// PHASE 2 (Production): Replace with real Claude API call.
+// PHASE 2 (Production): Replace with a call to your own authenticated backend.
+// The backend must validate input, rate-limit callers, store API keys in server
+// environment variables, and schema-validate any LLM output before returning it.
 //
-// Example production implementation:
+// Example browser-side implementation:
 //
 //   export async function getResponse(userMessage, conversationHistory) {
-//     const response = await fetch('https://api.anthropic.com/v1/messages', {
+//     const response = await fetch('/api/triage', {
 //       method: 'POST',
 //       headers: { 'Content-Type': 'application/json' },
-//       body: JSON.stringify({
-//         model: 'claude-sonnet-4-6',
-//         max_tokens: 2000,
-//         system: `You are the GW AMS AI Ops Assistant. You have deep expertise in
-//                  Guidewire PolicyCenter, BillingCenter, and ClaimCenter. When an engineer
-//                  describes a production incident:
-//                  1. Identify the root cause from GW patterns (N+1, workflow deadlock, empty catch, etc.)
-//                  2. Provide immediate triage steps in numbered order
-//                  3. Recommend the permanent Gosu code fix
-//                  4. Suggest a JIRA ticket template
-//                  Always reference the specific GW module, line of code if identifiable, and estimated MTTR.`,
-//         messages: conversationHistory.concat([{ role: 'user', content: userMessage }]),
-//       }),
+//       credentials: 'include',
+//       body: JSON.stringify({ userMessage, conversationHistory }),
 //     });
-//     const data = await response.json();
-//     return data.content[0].text;
+//     if (!response.ok) throw new Error('Triage request failed');
+//     return response.json();
 //   }
 
 export function getResponse(userMessage) {

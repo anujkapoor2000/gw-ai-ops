@@ -37,6 +37,21 @@ var SUGGESTED = [
 ];
 
 var WELCOME = 'Hello! I am the GW AMS AI Ops Assistant.\n\nDescribe your Guidewire incident and I will provide immediate triage steps, root cause analysis, and the permanent fix from the knowledge base.\n\nTry one of the suggested queries below or describe your incident in plain English.';
+var MAX_QUERY_LENGTH = 2000;
+var MAX_MESSAGES = 25;
+
+function normalizeQuery(value) {
+  return String(value || '').slice(0, MAX_QUERY_LENGTH).trim();
+}
+
+function appendBoundedMessages(current, additions) {
+  return current.concat(additions).slice(-MAX_MESSAGES);
+}
+
+function getMttrMinutes(kb) {
+  var match = String(kb && kb.estimatedMTTR || '').match(/\d+/);
+  return match ? parseInt(match[0], 10) : 0;
+}
 
 function AppLogo() {
   return (
@@ -171,6 +186,7 @@ export default function App() {
   var [kbTab,    setKbTab]    = useState('steps');
   var [stats,    setStats]    = useState({ resolved:0, avgMTTR:0, total:0 });
   var bottomRef = useRef(null);
+  var loadingRef = useRef(false);
 
   useEffect(function() {
     if (bottomRef.current) {
@@ -179,11 +195,12 @@ export default function App() {
   }, [messages, loading]);
 
   function sendQuery(q) {
-    var text = q || query;
-    if (!text.trim() || loading) return;
+    var text = normalizeQuery(q || query);
+    if (!text || loadingRef.current) return;
     setQuery('');
+    loadingRef.current = true;
     setLoading(true);
-    var newMessages = messages.concat([{ role:'user', text:text, kb:null }]);
+    var newMessages = appendBoundedMessages(messages, [{ role:'user', text:text, kb:null }]);
     setMessages(newMessages);
 
     getResponse(text).then(function(match) {
@@ -194,14 +211,21 @@ export default function App() {
         setKbTab('steps');
         setStats(function(prev) {
           var resolved = prev.resolved + 1;
-          var avg = Math.round((prev.avgMTTR * prev.resolved + parseInt(match.estimatedMTTR)) / resolved);
+          var avg = Math.round((prev.avgMTTR * prev.resolved + getMttrMinutes(match)) / resolved);
           return { resolved:resolved, avgMTTR:avg, total:prev.total + 1 };
         });
       } else {
         responseText = 'I could not find an exact match in the knowledge base. Please be more specific -- mention the GW module (PolicyCenter, BillingCenter, ClaimCenter), the symptom (timeout, stuck, duplicate, NPE), or the integration (ACH, ISO, rating).\n\nIn production, Claude would analyse this against the full GW pattern library and generate a novel triage approach even for new incident types.';
         setStats(function(prev) { return Object.assign({}, prev, { total:prev.total + 1 }); });
       }
-      setMessages(newMessages.concat([{ role:'assistant', text:responseText, kb:match }]));
+      setMessages(appendBoundedMessages(newMessages, [{ role:'assistant', text:responseText, kb:match }]));
+      loadingRef.current = false;
+      setLoading(false);
+    }).catch(function() {
+      var responseText = 'The knowledge base lookup failed. Please retry, and avoid entering secrets, credentials, or customer data in incident descriptions.';
+      setStats(function(prev) { return Object.assign({}, prev, { total:prev.total + 1 }); });
+      setMessages(appendBoundedMessages(newMessages, [{ role:'assistant', text:responseText, kb:null }]));
+      loadingRef.current = false;
       setLoading(false);
     });
   }
@@ -302,8 +326,8 @@ export default function App() {
             <span style={{ fontSize:10, color:G400, alignSelf:'center', marginRight:4 }}>Try:</span>
             {SUGGESTED.map(function(s) {
               return (
-                <button key={s} onClick={function() { sendQuery(s); }}
-                  style={{ fontSize:10, padding:'4px 10px', background:WHITE, border:'1px solid '+G200, borderRadius:12, color:BLUE, cursor:'pointer', fontWeight:500 }}>
+                <button key={s} onClick={function() { sendQuery(s); }} disabled={loading}
+                  style={{ fontSize:10, padding:'4px 10px', background:WHITE, border:'1px solid '+G200, borderRadius:12, color:loading?G400:BLUE, cursor:loading?'not-allowed':'pointer', fontWeight:500 }}>
                   {s}
                 </button>
               );
@@ -311,8 +335,8 @@ export default function App() {
           </div>
 
           <div style={{ padding:'14px 20px', background:WHITE, borderTop:'1px solid '+G200, display:'flex', gap:10 }}>
-            <input value={query} onChange={function(e) { setQuery(e.target.value); }}
-              onKeyDown={function(e) { if (e.key === 'Enter') sendQuery(); }}
+            <input value={query} maxLength={MAX_QUERY_LENGTH} onChange={function(e) { setQuery(e.target.value.slice(0, MAX_QUERY_LENGTH)); }}
+              onKeyDown={function(e) { if (e.key === 'Enter') { e.preventDefault(); sendQuery(); } }}
               placeholder="Describe the incident: 'PolicyCenter validation timing out on HO-3 renewals'..."
               style={{ flex:1, padding:'10px 14px', borderRadius:10, border:'1.5px solid '+(query?BLUE:G200), fontSize:12, color:G800, outline:'none' }}/>
             <button onClick={function() { sendQuery(); }} disabled={loading || !query.trim()}

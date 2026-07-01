@@ -15,6 +15,10 @@ npm start
 # Open http://localhost:3000
 ```
 
+Do not place API keys, OAuth tokens, or customer secrets in `REACT_APP_*`
+variables. Create React App embeds those values in the browser bundle. Use a
+server-side API route or backend-for-frontend for all third-party integrations.
+
 ---
 
 ## Deploy to Vercel (5 minutes, free)
@@ -66,15 +70,46 @@ gw-ai-ops/
 ### Phase 1 -- PoC (now, on Vercel)
 Static KB with 6 articles and keyword matching. Full chat UI with 3-panel layout.
 
-### Phase 2 -- Live Claude API (Week 1-2)
+### Phase 2 -- Live Claude API
 
-Replace `getResponse()` in `src/kb.js` with a real Claude API call:
+Replace `getResponse()` in `src/kb.js` with a call to your own authenticated
+backend endpoint. The browser sends only the user's incident description; the
+backend owns authentication, rate limiting, prompt construction, provider API
+keys, and response validation.
 
 ```javascript
-export async function getResponse(userMessage) {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+// Browser code: no provider keys or internal endpoints here.
+export async function getResponse(userMessage, conversationHistory = []) {
+  if (userMessage.length > 2000) throw new Error('Message too long');
+
+  const response = await fetch('/api/triage', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ userMessage, conversationHistory }),
+  });
+
+  if (!response.ok) throw new Error('Triage request failed');
+  return response.json();
+}
+```
+
+Example server-side route shape:
+
+```javascript
+// Runs on a serverless function or backend service, never in the browser.
+export async function POST(request) {
+  const { userMessage } = await request.json();
+  validateAuthenticatedUser(request);
+  validateIncidentInput(userMessage);
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+    },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
       max_tokens: 2000,
@@ -89,14 +124,16 @@ export async function getResponse(userMessage) {
       messages: [{ role: 'user', content: userMessage }],
     }),
   });
+
   const data = await response.json();
-  return JSON.parse(data.content[0].text);
+  return Response.json(validateTriageResponse(data.content[0].text));
 }
 ```
 
-Add `REACT_APP_ANTHROPIC_KEY` in Vercel dashboard -> Environment Variables.
+Store `ANTHROPIC_API_KEY` only in server-side environment variables. Schema
+validate LLM output before returning it to the UI, and reject unexpected fields.
 
-### Phase 3 -- Knowledge Graph Integration (Week 3-4)
+### Phase 3 -- Knowledge Graph Integration
 
 Connect to the GW Knowledge Graph (Neo4j) to pull real resolved incidents:
 
@@ -107,15 +144,15 @@ const context = await similar.json();
 // Inject context into Claude prompt for grounded responses
 ```
 
-### Phase 4 -- ServiceNow / Jira Integration (Week 5-6)
+### Phase 4 -- ServiceNow / Jira Integration
 
 ```javascript
-// Auto-create incident in ServiceNow when AI Ops detects a new issue
-await fetch('https://YOUR_INSTANCE.service-now.com/api/now/table/incident', {
+// Server-side only: auto-create incident when AI Ops detects a new issue.
+await fetch(process.env.SERVICENOW_INCIDENT_URL, {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'Authorization': 'Bearer ' + process.env.REACT_APP_SNOW_TOKEN,
+    'Authorization': 'Bearer ' + process.env.SERVICENOW_TOKEN,
   },
   body: JSON.stringify({
     short_description: detectedTitle,
@@ -125,7 +162,7 @@ await fetch('https://YOUR_INSTANCE.service-now.com/api/now/table/incident', {
 });
 ```
 
-### Phase 5 -- Proactive Alerting (Week 7-8)
+### Phase 5 -- Proactive Alerting
 
 Instead of waiting for engineers to ask, monitor GW logs in real time:
 
@@ -139,6 +176,21 @@ exports.handler = async (event) => {
   }
 };
 ```
+
+---
+
+## Security checklist
+
+- Keep secrets on the server; never expose credentials through `REACT_APP_*`.
+- Require SSO/OIDC or SAML before serving production runbooks or customer data.
+- Validate and length-limit incident descriptions before sending them to any AI
+  or integration service.
+- Treat LLM output as untrusted data and schema-validate it before rendering or
+  using it to create tickets.
+- Deploy with security headers (`vercel.json` and `public/_headers` are included
+  for Vercel/Netlify-style hosts).
+- Disable production source maps if runbooks or integration details are
+  sensitive in your deployment environment.
 
 ---
 
