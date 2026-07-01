@@ -68,7 +68,7 @@ gw-ai-ops/
 ## Production Roadmap
 
 ### Phase 1 -- PoC (now, on Vercel)
-Static KB with 6 articles and keyword matching. Full chat UI with 3-panel layout.
+Static KB with 12 articles and keyword matching. Full chat UI with 3-panel layout.
 
 ### Phase 2 -- Live Claude API
 

@@ -25,7 +25,7 @@ var MOD_THEME = {
   BillingCenter: { bg:'#F0EBFF', border:PURPLE, text:PURPLE },
   ClaimCenter:   { bg:'#E6F7F7', border:TEAL,   text:TEAL   },
 };
-var CAT_COLORS = { Performance:BLUE, Integration:TEAL, Workflow:PURPLE, Data:AMBER };
+var CAT_COLORS = { Performance:BLUE, Integration:TEAL, Workflow:PURPLE, Data:AMBER, Security:RED };
 
 var SUGGESTED = [
   'PolicyCenter validation timing out on HO-3',
@@ -34,6 +34,12 @@ var SUGGESTED = [
   'Rating engine slow on complex risks',
   'Duplicate invoice charges on submit',
   'ISO ClaimSearch returning HTTP 400 on FNOL',
+  'OAuth refresh causing 401 storm for producer portal',
+  'Commission batch partially posted after failover retry',
+  'Bulk litigation notice PDF generation exhausting heap',
+  'Underwriting referrals looping after rule deployment',
+  'NSF reversal racing delinquency payment plan recalculation',
+  'PII redaction missing from claim notes export',
 ];
 
 var WELCOME = 'Hello! I am the GW AMS AI Ops Assistant.\n\nDescribe your Guidewire incident and I will provide immediate triage steps, root cause analysis, and the permanent fix from the knowledge base.\n\nTry one of the suggested queries below or describe your incident in plain English.';
